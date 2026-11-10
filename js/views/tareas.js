@@ -1,6 +1,6 @@
 // Tareas con fecha y urgencia + rutina diaria (hábitos que se marcan día a día).
 import { h, I, uid, today, addDays, weekStart, dayLabel, inlineEdit, DAYS_1, DAYS, toast } from '../ui.js';
-import { S, save } from '../store.js';
+import { S, save, goalById } from '../store.js';
 
 /* ---------- lógica compartida con Inicio ---------- */
 export function addTask(title, date = null, urgent = false) {
@@ -11,14 +11,16 @@ export const sortTasks = list => list.slice().sort((a, b) => (b.urgent - a.urgen
 export function toggleTask(t, done) { t.done = done; t.doneAt = done ? today() : null; save(); }
 export const isLate = t => !t.done && t.date && t.date < today();
 
-export function taskRow(t, { onChange, showDate = true } = {}) {
+export function taskRow(t, { onChange, showDate = true, inGoal = false } = {}) {
   const chk = h('input', { type: 'checkbox', class: 'chk' + (t.urgent ? ' urgent' : ''), checked: t.done, 'aria-label': 'Hecha' });
   const title = h('span', { class: 'tt' }, t.title);
   const dateIn = h('input', { type: 'date', value: t.date || '', tabindex: -1, 'aria-hidden': 'true' });
   const datePill = h('button', { class: 'pill btnish' + (isLate(t) ? ' late' : ''), title: 'Cambiar fecha' }, t.date ? dayLabel(t.date) : 'Sin fecha');
   const urg = h('button', { class: 'icon-btn' + (t.urgent ? ' on' : ''), title: t.urgent ? 'Quitar urgente' : 'Marcar urgente', html: `<span class="ic">${I.fire}</span>` });
   const del = h('button', { class: 'icon-btn danger', title: 'Eliminar', html: `<span class="ic">${I.trash}</span>` });
+  const goal = t.goalId && goalById(t.goalId);
   const row = h('div', { class: 'trow' + (t.done ? ' done' : '') }, chk, title,
+    goal && !inGoal ? h('a', { class: 'pill goalpill', href: '#/metas', title: 'Parte de esta meta' }, h('span', { class: 'ic', html: I.goals }), goal.title) : null,
     showDate || isLate(t) || !t.date ? datePill : null, dateIn,
     h('span', { class: 'acts' }, urg, del));
   chk.addEventListener('change', () => { toggleTask(t, chk.checked); row.classList.toggle('done', chk.checked); setTimeout(onChange, chk.checked ? 380 : 0); });

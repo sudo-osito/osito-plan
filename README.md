@@ -1,6 +1,6 @@
-# Organizador
+# Osito Plan
 
-Organizador personal en el navegador: **tareas** (con fecha y urgencia), **rutina diaria**, **metas** del mes y del año,
+Plan personal en el navegador: **tareas** (con fecha y urgencia), **rutina diaria**, **metas** del mes y del año,
 **notas**, **horario semanal** de lunes a domingo en bloques de 30 minutos (con varios horarios guardados) y **dinero**
 (presupuesto del mes por % o monto fijo, y el ahorro mes a mes del año).
 

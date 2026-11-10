@@ -15,14 +15,13 @@ export default {
 
     /* ---------- cabecera + horarios guardados ---------- */
     const undoBtn = h('button', { class: 'btn sm', title: 'Deshacer (⌘Z)', disabled: true, onclick: undo }, h('span', { class: 'ic', html: I.undo }), 'Deshacer');
-    root.append(h('div', { class: 'page-head' },
-      h('h1', {}, 'Horario'),
-      h('span', { class: 'sub' }, 'Lunes a domingo · bloques de 30 min'),
-      h('span', { class: 'spacer' }),
-      undoBtn,
-      h('span', { class: 'hint' }, 'Arrastra para pintar · ', h('kbd', {}, '1'), '–', h('kbd', {}, '9'), ' categoría · ', h('kbd', {}, '0'), ' borrar')));
-
     const profiles = h('div', { class: 'profiles', role: 'tablist', 'aria-label': 'Mis horarios' });
+    root.append(h('div', { class: 'page-head hhead' },
+      h('h1', {}, 'Horario'),
+      profiles,
+      h('span', { class: 'spacer' }),
+      h('span', { class: 'hint hkeys' }, 'Arrastra para pintar · ', h('kbd', {}, '1'), '–', h('kbd', {}, '9'), ' categoría · ', h('kbd', {}, '0'), ' borrar'),
+      undoBtn));
     function switchTo(id) { S.schedules.active = id; save(); rerender(); }
     function addSchedule(from) {
       const n = newSchedule(uniqueName(from ? `${from.name} (copia)` : 'Nuevo horario', S.schedules.list), from || { cats: sch.cats, grid: blankGrid(), brush: sch.brush });
@@ -63,7 +62,6 @@ export default {
       { label: `Copia de «${sch.name}»`, icon: I.dup, onClick: () => addSchedule(sch) },
     ], { align: 'left' }));
     profiles.append(addChip);
-    root.append(profiles);
 
     /* ---------- grilla ---------- */
     const grid = h('div', { class: 'grid' });
@@ -72,7 +70,7 @@ export default {
 
     let cells = [];
     function buildGrid() {
-      grid.style.gridTemplateColumns = `52px repeat(7, minmax(0,1fr))`;
+      grid.style.gridTemplateColumns = `46px repeat(7, minmax(0,1fr))`;
       grid.innerHTML = '';
       cells = Array.from({ length: 7 }, () => []);
       grid.append(h('div'));
@@ -143,6 +141,16 @@ export default {
       paintGrid(); renderStats();
     }
 
+    function fit() {
+      if (matchMedia('(max-width: 820px)').matches) { grid.style.removeProperty('--slot'); grid.classList.remove('tiny'); return; }
+      const head = grid.querySelector('.dh');
+      const top = grid.getBoundingClientRect().top + scrollY;
+      const avail = innerHeight - top - head.offsetHeight - 30;
+      const slot = Math.max(8, Math.min(22, Math.floor(avail / SLOTS)));
+      grid.style.setProperty('--slot', slot + 'px');
+      grid.classList.toggle('tiny', slot < 12);
+      side.style.maxHeight = `${innerHeight - top - 18}px`;
+    }
     function placeNow() {
       const el = grid.querySelector('#nowLine'); if (!el) return;
       const dt = new Date(), d = (dt.getDay() + 6) % 7, m = dt.getHours() * 60 + dt.getMinutes();
@@ -247,7 +255,8 @@ export default {
     }
 
     buildGrid(); paintGrid(); renderCats(); renderStats();
-    requestAnimationFrame(placeNow);
+    fit(); requestAnimationFrame(() => { fit(); placeNow(); });
+    const onResize = () => { fit(); placeNow(); };
 
     const onKey = e => {
       if (e.target.matches('input,textarea')) return;
@@ -257,8 +266,8 @@ export default {
       const i = +e.key; if (i >= 1 && i <= 9 && sch.cats[i - 1]) setBrush(sch.cats[i - 1].id);
     };
     document.addEventListener('keydown', onKey);
-    addEventListener('resize', placeNow);
+    addEventListener('resize', onResize);
     const t = setInterval(placeNow, 60000);
-    return () => { document.removeEventListener('keydown', onKey); removeEventListener('resize', placeNow); clearInterval(t); };
+    return () => { document.removeEventListener('keydown', onKey); removeEventListener('resize', onResize); clearInterval(t); };
   },
 };

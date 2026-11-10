@@ -1,6 +1,6 @@
 // Inicio: todo lo de hoy en una pantalla (ahora, urgente, tareas, rutina, metas, dinero, semana y notas).
 import { h, I, fmt, clp, today, monthKey, monthName, longDate, slotTime, ampm } from '../ui.js';
-import { S, SLOTS, activeSchedule, scheduleCounts, incomeTotal, pctTotal, yearSavings } from '../store.js';
+import { S, SLOTS, activeSchedule, scheduleCounts, incomeTotal, pctTotal, yearSavings, budgetSavings } from '../store.js';
 import { addTask, taskRow, sortTasks, habitStreak, toggleHabit, isLate } from './tareas.js';
 import { goalsFor, goalProgress, goalDone } from './metas.js';
 import { recentNotes, openEditor, newNote } from './notas.js';
@@ -87,7 +87,7 @@ export default {
     const inc = incomeTotal(), left = 100 - pctTotal(), y = t0.slice(0, 4), ys = yearSavings(y), yg = +S.savings.goals[y] || 0;
     dash.append(card('c-money', 'Dinero', ['dinero', 'Dinero →'],
       h('div', { class: 'stat-row' },
-        h('div', { class: 'stat' }, h('div', { class: 'l' }, 'Entra al mes'), h('div', { class: 'v' }, inc ? clp(inc) : '–'), h('div', { class: 'd' }, inc ? (Math.abs(left) < 0.01 ? 'todo repartido' : left > 0 ? `${clp(inc * left / 100)} sin repartir` : `te pasas ${clp(inc * -left / 100)}`) : 'arma tu presupuesto')),
+        h('div', { class: 'stat' }, h('div', { class: 'l' }, 'Entra al mes'), h('div', { class: 'v' }, inc ? clp(inc) : '–'), h('div', { class: 'd' }, inc ? (Math.abs(left) < 0.01 ? `${clp(budgetSavings())} va a ahorro` : left > 0 ? `${clp(inc * left / 100)} sin repartir` : `te pasas ${clp(inc * -left / 100)}`) : 'arma tu presupuesto')),
         h('div', { class: 'stat' }, h('div', { class: 'l' }, `Ahorro ${y}`), h('div', { class: 'v' }, clp(ys)), h('div', { class: 'd' }, yg ? `${fmt(Math.min(100, ys / yg * 100), 0)}% de ${clp(yg)}` : 'sin meta del año'))),
       yg ? h('div', { class: 'pbar' + (ys >= yg ? ' done' : ''), style: { marginTop: '12px' } }, h('i', { style: { width: Math.min(100, ys / yg * 100) + '%' } })) : null));
 

@@ -4,23 +4,24 @@ import { uid, today } from './ui.js';
 const KEY = 'organizador.v1';
 export const SLOTS = 48;   // bloques de 30 min por día
 
-export const PALETTE = ['#5e5ce6', '#2a6cf0', '#ff9f0a', '#30b158', '#e5b400', '#8e8e93', '#ff5d8f', '#14b8a6', '#bf5af2', '#ff453a', '#64d2ff', '#a2845e'];
+// colores de sistema de Apple en modo oscuro
+export const PALETTE = ['#5e5ce6', '#0a84ff', '#ff9f0a', '#30d158', '#ffd60a', '#8e8e93', '#ff375f', '#40c8e0', '#bf5af2', '#ff453a', '#64d2ff', '#ac8e68'];
 export const DEFAULT_CATS = [
   { id: 'dormir', name: 'Dormir', color: '#5e5ce6' },
-  { id: 'trabajo', name: 'Trabajo', color: '#2a6cf0' },
+  { id: 'trabajo', name: 'Trabajo', color: '#0a84ff' },
   { id: 'hobby', name: 'Hobby', color: '#ff9f0a' },
-  { id: 'ejercicio', name: 'Ejercicio', color: '#30b158' },
-  { id: 'comida', name: 'Comida', color: '#e5b400' },
+  { id: 'ejercicio', name: 'Ejercicio', color: '#30d158' },
+  { id: 'comida', name: 'Comida', color: '#ffd60a' },
   { id: 'traslado', name: 'Traslado', color: '#8e8e93' },
-  { id: 'social', name: 'Familia y amigos', color: '#ff5d8f' },
-  { id: 'personal', name: 'Personal', color: '#14b8a6' },
+  { id: 'social', name: 'Familia y amigos', color: '#ff375f' },
+  { id: 'personal', name: 'Personal', color: '#40c8e0' },
 ];
 const DEFAULT_MONEY = () => ({
   incomes: [{ id: 'i1', name: 'Sueldo', amount: 0 }],
   dests: [
-    { id: 'd1', name: 'Gastos fijos', pct: 0, color: '#2a6cf0' },
-    { id: 'd2', name: 'Ahorro', pct: 0, color: '#30b158' },
-    { id: 'd3', name: 'Inversión', pct: 0, color: '#14b8a6' },
+    { id: 'd1', name: 'Gastos fijos', pct: 0, color: '#0a84ff' },
+    { id: 'd2', name: 'Ahorro', pct: 0, color: '#30d158', saving: true },
+    { id: 'd3', name: 'Inversión', pct: 0, color: '#40c8e0', saving: true },
     { id: 'd4', name: 'Gustos', pct: 0, color: '#ff9f0a' },
   ],
 });
@@ -128,3 +129,28 @@ export function importData(o) {
 }
 
 export const isToday = s => s === today();
+
+/* ---------- conexiones entre secciones ---------- */
+// Un destino del presupuesto cuenta como ahorro si se marcó (o, por defecto, si se llama Ahorro/Inversión).
+export const isSavingDest = d => d.saving ?? /ahorro|inversi/i.test(d.name || '');
+export const budgetSavings = () => { const t = incomeTotal(); return S.money.dests.filter(isSavingDest).reduce((a, d) => a + amtOf(d, t), 0); };
+export const monthSaved = key => +S.savings.months[key]?.saved || 0;
+
+// Metas: el avance puede venir de un número manual, de tareas, de un hábito o del ahorro.
+export function goalCurrent(g) {
+  if (g.kind === 'tasks') return S.tasks.filter(t => t.goalId === g.id && t.done).length;
+  if (g.kind === 'habit') {
+    const hb = S.habits.find(x => x.id === g.habitId); if (!hb) return 0;
+    return Object.keys(hb.log).filter(d => d.startsWith(g.period)).length;
+  }
+  if (g.kind === 'saving') return g.scope === 'mes' ? monthSaved(g.period) : yearSavings(g.period);
+  return +g.current || 0;
+}
+export function goalTarget(g) {
+  if (g.kind === 'tasks') return S.tasks.filter(t => t.goalId === g.id).length;
+  return +g.target || 0;
+}
+export const goalProgress = g => (g.kind === 'check' ? (g.done ? 1 : 0) : goalTarget(g) ? Math.max(0, Math.min(1, goalCurrent(g) / goalTarget(g))) : 0);
+export const goalDone = g => (g.kind === 'check' ? !!g.done : goalTarget(g) > 0 && goalCurrent(g) >= goalTarget(g));
+export const goalsFor = (sc, p) => S.goals.filter(g => g.scope === sc && g.period === p);
+export const goalById = id => S.goals.find(g => g.id === id);

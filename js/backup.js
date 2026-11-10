@@ -8,7 +8,7 @@ export const setOnImported = fn => { onImported = fn; };
 export function doExport() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([exportData()], { type: 'application/json' }));
-  a.download = `organizador-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `osito-plan-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   refreshBackupStatus();
@@ -21,12 +21,12 @@ fileInput.addEventListener('change', async () => {
   const f = fileInput.files[0]; if (!f) return;
   try {
     const o = JSON.parse(await f.text());
-    if (o.app === 'organizador' && !confirm('Este respaldo reemplaza todo lo que tienes ahora en el Organizador. ¿Seguir?')) return;
+    if (o.app === 'organizador' && !confirm('Este respaldo reemplaza todo lo que tienes ahora en Osito Plan. ¿Seguir?')) return;
     const r = importData(o);
     onImported();
     toast(r.mode === 'replace' ? 'Respaldo restaurado' : `Listo: ${r.count} horario${r.count === 1 ? '' : 's'} importado${r.count === 1 ? '' : 's'}`);
   } catch (e) {
-    alert('Ese archivo no es un respaldo válido del Organizador ni de «Mi semana».');
+    alert('Ese archivo no es un respaldo válido de Osito Plan ni de «Mi semana».');
   } finally { fileInput.value = ''; }
 });
 export const doImport = () => fileInput.click();

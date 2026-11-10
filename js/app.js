@@ -1,7 +1,8 @@
-// Organizador: navegación entre vistas (hash) y arranque.
+// Osito Plan: navegación entre vistas (hash) y arranque.
 import { h, $, I, closeMenu } from './ui.js';
 import { load } from './store.js';
 import { backupBlock, setOnImported, refreshBackupStatus } from './backup.js';
+import { quickAdd, setAfterQuickSave } from './quick.js';
 import inicio from './views/inicio.js';
 import tareas from './views/tareas.js';
 import metas from './views/metas.js';
@@ -27,6 +28,10 @@ const navLink = (r, cls) => h('a', { href: `#/${r.id}`, class: cls, 'data-id': r
 $('#nav').append(...ROUTES.map(r => navLink(r, 'nav-item')));
 $('#tabbar').append(...ROUTES.map(r => navLink(r, 'tab')));
 $('#navFoot').append(backupBlock());
+$('#quickBtn .ic').innerHTML = I.plus;
+$('#quickBtn').addEventListener('click', () => quickAdd());
+document.body.append(h('button', { class: 'fab', 'aria-label': 'Agregar rápido', html: `<span class="ic">${I.plus}</span>`, onclick: () => quickAdd() }));
+setAfterQuickSave(() => render(true));
 
 function routeId() { const id = location.hash.replace(/^#\/?/, '').split('/')[0]; return ROUTES.some(r => r.id === id) ? id : 'inicio'; }
 
@@ -40,7 +45,7 @@ export function render(keepScroll = false) {
   root.innerHTML = '';
   root.dataset.view = id;
   document.querySelectorAll('[data-id]').forEach(a => a.classList.toggle('on', a.dataset.id === id));
-  document.title = id === 'inicio' ? 'Organizador' : `${r.label} · Organizador`;
+  document.title = id === 'inicio' ? 'Osito Plan' : `${r.label} · Osito Plan`;
   cleanup = r.view.render(root, { rerender: () => render(true), go: to => { location.hash = `#/${to}`; } });
   if (keepScroll && current === id) scrollTo(0, y); else scrollTo(0, 0);
   current = id;
