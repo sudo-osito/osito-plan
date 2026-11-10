@@ -1,6 +1,6 @@
 // Inicio: todo lo de hoy en una pantalla (ahora, urgente, tareas, rutina, metas, dinero, semana y notas).
-import { h, I, fmt, clp, today, monthKey, monthName, longDate, slotTime, ampm } from '../ui.js';
-import { S, SLOTS, activeSchedule, scheduleCounts, incomeTotal, pctTotal, yearSavings, budgetSavings } from '../store.js';
+import { h, I, fmt, clp, today, monthKey, monthName, longDate, slotTime, ampm, toast } from '../ui.js';
+import { S, SLOTS, activeSchedule, scheduleCounts, incomeTotal, yearSavings, monthTotals, isSavingDest, amtOf, parseMovement, addMovement, catName } from '../store.js';
 import { addTask, taskRow, sortTasks, habitStreak, toggleHabit, isLate } from './tareas.js';
 import { goalsFor, goalProgress, goalDone } from './metas.js';
 import { recentNotes, openEditor, newNote } from './notas.js';
@@ -83,13 +83,24 @@ export default {
         h('div', { class: 'pbar' + (goalDone(g) ? ' done' : '') }, h('i', { style: { width: goalProgress(g) * 100 + '%' } })))))
         : h('div', { class: 'empty-note' }, 'Sin metas este mes. Defínelas en Metas.')));
 
-    /* ---------- dinero ---------- */
-    const inc = incomeTotal(), left = 100 - pctTotal(), y = t0.slice(0, 4), ys = yearSavings(y), yg = +S.savings.goals[y] || 0;
-    dash.append(card('c-money', 'Dinero', ['dinero', 'Dinero →'],
+    /* ---------- dinero: el mes real (movimientos) + gasto rápido ---------- */
+    const inc = incomeTotal(), mt = monthTotals(monthKey(t0)), y = t0.slice(0, 4), ys = yearSavings(y), yg = +S.savings.goals[y] || 0;
+    const planned = S.money.dests.filter(d => !isSavingDest(d)).reduce((a, d) => a + amtOf(d, inc), 0);
+    const todaySpent = S.ledger.filter(m => m.date === t0 && m.type === 'gasto' && !S.money.dests.some(d => d.id === m.cat && isSavingDest(d))).reduce((a, m) => a + m.amount, 0);   // apartar ahorro no es gastar
+    const qg = h('input', { class: 'field', placeholder: 'Gasto rápido: 5000 almuerzo', 'aria-label': 'Gasto rápido' });
+    qg.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || !qg.value.trim()) return;
+      const p = parseMovement(qg.value, 'gasto');
+      if (!p.amount) { toast('Escribe el monto, por ejemplo: 5000 almuerzo'); return; }
+      const m = addMovement({ type: 'gasto', amount: p.amount, what: p.what || 'Gasto', cat: p.cat });
+      toast(`Gasto de ${clp(p.amount)} · ${catName(m)}`); rerender();
+    });
+    dash.append(card('c-money', 'Dinero de ' + monthName(monthKey(t0)).split(' ')[0], ['dinero', 'Dinero →'],
+      h('div', { class: 'quick' }, qg),
       h('div', { class: 'stat-row' },
-        h('div', { class: 'stat' }, h('div', { class: 'l' }, 'Entra al mes'), h('div', { class: 'v' }, inc ? clp(inc) : '–'), h('div', { class: 'd' }, inc ? (Math.abs(left) < 0.01 ? `${clp(budgetSavings())} va a ahorro` : left > 0 ? `${clp(inc * left / 100)} sin repartir` : `te pasas ${clp(inc * -left / 100)}`) : 'arma tu presupuesto')),
-        h('div', { class: 'stat' }, h('div', { class: 'l' }, `Ahorro ${y}`), h('div', { class: 'v' }, clp(ys)), h('div', { class: 'd' }, yg ? `${fmt(Math.min(100, ys / yg * 100), 0)}% de ${clp(yg)}` : 'sin meta del año'))),
-      yg ? h('div', { class: 'pbar' + (ys >= yg ? ' done' : ''), style: { marginTop: '12px' } }, h('i', { style: { width: Math.min(100, ys / yg * 100) + '%' } })) : null));
+        h('div', { class: 'stat' + (planned && mt.spent > planned ? ' warn' : '') }, h('div', { class: 'l' }, 'Gastado'), h('div', { class: 'v' }, clp(mt.spent)), h('div', { class: 'd' }, planned ? `de ${clp(planned)} · hoy ${clp(todaySpent)}` : `hoy ${clp(todaySpent)}`)),
+        h('div', { class: 'stat' + (mt.saved < 0 ? ' warn' : '') }, h('div', { class: 'l' }, 'Balance'), h('div', { class: 'v' }, (mt.saved < 0 ? '−' : '') + clp(Math.abs(mt.saved))), h('div', { class: 'd' }, mt.inc ? `entró ${clp(mt.inc)}` : yg ? `ahorro ${y}: ${fmt(Math.min(100, ys / yg * 100), 0)}%` : 'anota tus ingresos'))),
+      planned ? h('div', { class: 'pbar', style: { marginTop: '12px' } }, h('i', { style: { width: Math.min(100, mt.spent / planned * 100) + '%', background: mt.spent > planned ? 'var(--bad)' : '' } })) : null));
 
     /* ---------- semana ---------- */
     const { per } = scheduleCounts(sch);

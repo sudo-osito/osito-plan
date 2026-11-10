@@ -1,6 +1,6 @@
 // Agregar rápido (⌘K o el botón): una tarea, una nota o una meta sin salir de donde estás.
-import { h, I, today, addDays, monthKey, uid, toast } from './ui.js';
-import { S, save } from './store.js';
+import { h, I, today, addDays, monthKey, uid, toast, clp } from './ui.js';
+import { S, save, parseMovement, addMovement, catName } from './store.js';
 
 let open = null;
 let afterSave = () => {};
@@ -12,8 +12,8 @@ export function quickAdd(kind = 'tarea') {
   const input = h('input', { class: 'q-in', placeholder: '', 'aria-label': 'Qué quieres agregar' });
   const seg = h('div', { class: 'seg' });
   const opts = h('div', { class: 'q-opts' });
-  const kinds = [['tarea', 'Tarea'], ['nota', 'Nota'], ['meta', 'Meta del mes']];
-  const ph = { tarea: 'Nueva tarea…  (empieza con ! para urgente)', nota: 'Escribe la nota…', meta: 'Nueva meta para este mes…' };
+  const kinds = [['tarea', 'Tarea'], ['gasto', 'Gasto'], ['ingreso', 'Ingreso'], ['nota', 'Nota'], ['meta', 'Meta del mes']];
+  const ph = { tarea: 'Nueva tarea…  (empieza con ! para urgente)', gasto: 'Monto y en qué fue: 5000 almuerzo', ingreso: 'Monto y de dónde: 250000 sueldo', nota: 'Escribe la nota…', meta: 'Nueva meta para este mes…' };
   function paint() {
     seg.replaceChildren(...kinds.map(([k, l]) => h('button', { 'aria-pressed': kind === k ? 'true' : 'false', onclick: () => { kind = k; paint(); input.focus(); } }, l)));
     input.placeholder = ph[kind];
@@ -26,12 +26,17 @@ export function quickAdd(kind = 'tarea') {
   paint();
   const close = () => { bg.remove(); open = null; document.removeEventListener('keydown', onKey, true); };
   const commit = () => {
-    let v = input.value.trim(); if (!v) return;
+    let v = input.value.trim(); if (!v) return false;
     if (kind === 'tarea') {
       let u = urgent; if (v.startsWith('!')) { u = true; v = v.slice(1).trim(); }
       const date = when === 'hoy' ? today() : when === 'manana' ? addDays(today(), 1) : null;
       S.tasks.push({ id: uid('t'), title: v, date, urgent: u, done: false, created: Date.now() });
       toast(u ? 'Tarea urgente agregada' : 'Tarea agregada');
+    } else if (kind === 'gasto' || kind === 'ingreso') {
+      const p = parseMovement(v, kind);
+      if (!p.amount) { toast('Escribe el monto, por ejemplo: 5000 almuerzo'); return; }
+      const m = addMovement({ type: kind, amount: p.amount, what: p.what || (kind === 'gasto' ? 'Gasto' : 'Ingreso'), cat: p.cat });
+      toast(`${kind === 'gasto' ? 'Gasto' : 'Ingreso'} de ${clp(p.amount)} · ${catName(m)}`);
     } else if (kind === 'nota') {
       const [first, ...rest] = v.split(/\n/);
       S.notes.unshift({ id: uid('n'), title: rest.length ? first : '', body: rest.length ? rest.join('\n') : v, tags: [], pinned: false, color: null, created: Date.now(), updated: Date.now() });
@@ -40,12 +45,12 @@ export function quickAdd(kind = 'tarea') {
       S.goals.push({ id: uid('g'), title: v, scope: 'mes', period: monthKey(today()), kind: 'check', done: false, created: Date.now() });
       toast('Meta agregada a este mes');
     }
-    save(); input.value = ''; afterSave();
+    save(); input.value = ''; afterSave(); return true;
   };
   const onKey = e => {
     if (e.key === 'Escape') { e.preventDefault(); close(); }
-    if (e.key === 'Enter' && document.activeElement === input) { e.preventDefault(); commit(); if (!e.shiftKey) close(); }
-    if (e.key === 'Tab' && document.activeElement === input) { e.preventDefault(); kind = kinds[(kinds.findIndex(k => k[0] === kind) + (e.shiftKey ? 2 : 1)) % 3][0]; paint(); }
+    if (e.key === 'Enter' && document.activeElement === input) { e.preventDefault(); const ok = commit(); if (ok !== false && !e.shiftKey && !input.value) close(); }
+    if (e.key === 'Tab' && document.activeElement === input) { e.preventDefault(); kind = kinds[(kinds.findIndex(k => k[0] === kind) + (e.shiftKey ? kinds.length - 1 : 1)) % kinds.length][0]; paint(); }
   };
   const box = h('div', { class: 'quick-box', role: 'dialog', 'aria-label': 'Agregar rápido' },
     h('div', { class: 'q-top' }, h('span', { class: 'ic', html: I.plus }), input),

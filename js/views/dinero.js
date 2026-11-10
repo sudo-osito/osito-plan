@@ -1,9 +1,10 @@
 // Dinero: presupuesto del mes (repartir lo que entra) y el año mes a mes.
 // Conectado con Horario (valor de tu hora), Metas (metas de ahorro) e Inicio.
 import { h, I, esc, fmt, clp, digits, MONTHS, MONTHS_S, moneyField, today, monthKey, uid, toast } from '../ui.js';
-import { S, save, PALETTE, incomeTotal, isAmt, pctOf, amtOf, pctTotal, activeSchedule, scheduleCounts, isSavingDest, budgetSavings, yearSavings } from '../store.js';
+import { renderMovs, bindSetTab } from './movimientos.js';
+import { S, save, PALETTE, monthTotals, incomeTotal, isAmt, pctOf, amtOf, pctTotal, activeSchedule, scheduleCounts, isSavingDest, budgetSavings, yearSavings } from '../store.js';
 
-let viewYear = null, selMonth = null;
+let viewYear = null, selMonth = null, tab = 'movs';
 const pctFmt = p => fmt(p, 1);
 
 export default {
@@ -13,9 +14,14 @@ export default {
     viewYear ??= +t0.slice(0, 4);
     selMonth ??= monthKey(t0);
 
-    root.append(h('div', { class: 'page-head' },
+    const head = h('div', { class: 'page-head' },
       h('h1', {}, 'Dinero'),
-      h('span', { class: 'sub' }, 'Reparte lo que entra cada mes y sigue tu ahorro del año')));
+      h('div', { class: 'seg' }, ...[['movs', 'Movimientos'], ['plan', 'Presupuesto'], ['año', 'Año']].map(([k, l]) => h('button', { 'aria-pressed': tab === k ? 'true' : 'false', onclick: () => { tab = k; rerender(); } }, l))),
+      h('span', { class: 'spacer' }));
+    root.append(head);
+    bindSetTab(k => { tab = k; rerender(); });
+    if (tab === 'movs') { renderMovs(root, { rerender, head }); return; }
+    if (tab === 'plan') {
 
     /* =============== resumen arriba =============== */
     const strip = h('div', { class: 'card mstrip' });
@@ -152,16 +158,16 @@ export default {
     }
     renderLists();
 
+    }
     /* =============== el año =============== */
+    if (tab !== 'año') return;
     const Y = String(viewYear), curKey = monthKey(t0);
     if (!selMonth.startsWith(Y)) selMonth = Y === t0.slice(0, 4) ? curKey : `${Y}-01`;
-    root.append(h('div', { class: 'msec-h' },
-      h('h2', {}, `Año ${Y}`),
-      h('span', { class: 'hint' }, 'Elige un mes para anotar lo que entró y lo que ahorraste'),
-      h('span', { class: 'spacer' }),
+    head.append(
       h('span', { class: 'period' },
         h('button', { class: 'icon-btn', 'aria-label': 'Año anterior', html: `<span class="ic">${I.left}</span>`, onclick: () => { viewYear--; rerender(); } }),
-        h('button', { class: 'icon-btn', 'aria-label': 'Año siguiente', html: `<span class="ic">${I.right}</span>`, onclick: () => { viewYear++; rerender(); } }))));
+        h('span', { class: 'lbl' }, `Año ${Y}`),
+        h('button', { class: 'icon-btn', 'aria-label': 'Año siguiente', html: `<span class="ic">${I.right}</span>`, onclick: () => { viewYear++; rerender(); } })));
 
     const tiles = h('div', { class: 'mtiles' }), editor = h('div', { class: 'meditor' }), ysum = h('div', { class: 'goalbox' }), chart = h('div', { class: 'chart' });
     root.append(h('div', { class: 'ygrid' },
@@ -194,10 +200,11 @@ export default {
           h('label', {}, h('span', {}, 'Ahorré'), sav),
           h('button', { class: 'btn sm', title: 'Entró = tu presupuesto; Ahorré = tus destinos marcados como ahorro', onclick: () => {
             if (!incomeTotal()) { toast('Primero pon lo que entra arriba'); return; }
-            mrec(k).income = incomeTotal(); mrec(k).saved = Math.round(budgetSavings()); save(); toast('Mes llenado con tu presupuesto'); paintTiles(); paintEditor(); paintYear(); renderStats();
-          } }, 'Usar mi presupuesto')));
+            mrec(k).income = incomeTotal(); mrec(k).saved = Math.round(budgetSavings()); save(); toast('Mes llenado con tu presupuesto'); paintTiles(); paintEditor(); paintYear();
+          } }, 'Usar mi presupuesto'),
+          (() => { const mt = monthTotals(k); return mt.count ? h('button', { class: 'btn sm primary', title: 'Entró = tus ingresos anotados; Ahorré = ingresos − gastos', onclick: () => { mrec(k).income = mt.inc; mrec(k).saved = Math.max(0, mt.saved); save(); toast('Mes llenado con tus movimientos'); paintTiles(); paintEditor(); paintYear(); } }, `Usar mis movimientos (${mt.count})`) : null; })()));
     }
-    const goalIn = moneyField(() => S.savings.goals[Y], v => { S.savings.goals[Y] = v; save(); paintYear(); renderStats(); }, { 'aria-label': 'Meta de ahorro del año' });
+    const goalIn = moneyField(() => S.savings.goals[Y], v => { S.savings.goals[Y] = v; save(); paintYear(); }, { 'aria-label': 'Meta de ahorro del año' });
     function paintYear() {
       let inc = 0, sav = 0, months = 0; const vals = [];
       MONTHS.forEach((_, i) => { const r = rec(key(i)), a = +r?.income || 0, s = +r?.saved || 0; inc += a; sav += s; if (a || s) months++; vals.push(s); });

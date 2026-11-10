@@ -50,7 +50,7 @@ export function normalizeSchedule(s) {
 
 function fresh() {
   const sch = newSchedule('Mi semana');
-  return { app: 'organizador', v: 1, schedules: { active: sch.id, list: [sch] }, money: DEFAULT_MONEY(), savings: { goals: {}, months: {} }, tasks: [], habits: [], goals: [], notes: [], ui: {} };
+  return { app: 'organizador', v: 1, schedules: { active: sch.id, list: [sch] }, money: DEFAULT_MONEY(), savings: { goals: {}, months: {} }, ledger: [], tasks: [], habits: [], goals: [], notes: [], ui: {} };
 }
 export function normalize(o) {
   const f = fresh();
@@ -61,7 +61,7 @@ export function normalize(o) {
   if (!o.schedules.list.some(s => s.id === o.schedules.active)) o.schedules.active = o.schedules.list[0].id;
   o.money.incomes ||= []; o.money.dests ||= [];
   o.savings.goals ||= {}; o.savings.months ||= {};
-  for (const k of ['tasks', 'habits', 'goals', 'notes']) if (!Array.isArray(o[k])) o[k] = [];
+  for (const k of ['tasks', 'habits', 'goals', 'notes', 'ledger']) if (!Array.isArray(o[k])) o[k] = [];
   return o;
 }
 
@@ -154,3 +154,60 @@ export const goalProgress = g => (g.kind === 'check' ? (g.done ? 1 : 0) : goalTa
 export const goalDone = g => (g.kind === 'check' ? !!g.done : goalTarget(g) > 0 && goalCurrent(g) >= goalTarget(g));
 export const goalsFor = (sc, p) => S.goals.filter(g => g.scope === sc && g.period === p);
 export const goalById = id => S.goals.find(g => g.id === id);
+
+/* ---------- contabilidad: movimientos (gastos e ingresos) ---------- */
+// { id, type: 'gasto'|'ingreso', amount, what, cat, date: 'AAAA-MM-DD', fixed?, from?, created }
+export const ledgerMonth = key => S.ledger.filter(m => m.date.startsWith(key));
+export function monthTotals(key) {
+  let inc = 0, exp = 0, toSaving = 0;
+  const byCat = {};
+  for (const m of ledgerMonth(key)) {
+    if (m.type === 'ingreso') { inc += m.amount; continue; }
+    exp += m.amount; byCat[m.cat || ''] = (byCat[m.cat || ''] || 0) + m.amount;
+    const d = S.money.dests.find(x => x.id === m.cat);
+    if (d && isSavingDest(d)) toSaving += m.amount;
+  }
+  // lo que de verdad se ahorró: lo que entró menos lo gastado (mandar plata a un destino de ahorro no es gasto)
+  return { inc, exp, toSaving, spent: exp - toSaving, saved: inc - (exp - toSaving), byCat, count: ledgerMonth(key).length };
+}
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+// adivina la categoría por lo que escribiste antes con el mismo motivo
+export function guessCat(what, type) {
+  const w = norm(what); if (!w) return null;
+  const prev = S.ledger.slice().reverse().find(m => m.type === type && norm(m.what) === w && m.cat);
+  if (prev) return prev.cat;
+  const first = w.split(/\s+/)[0];
+  const prev2 = first.length > 3 && S.ledger.slice().reverse().find(m => m.type === type && norm(m.what).split(/\s+/)[0] === first && m.cat);
+  return prev2 ? prev2.cat : null;
+}
+// «5000 almuerzo», «12k uber», «almuerzo 4.500 #gustos» → { amount, what, cat }
+export function parseMovement(text, type = 'gasto') {
+  let t = ' ' + String(text) + ' ';
+  let amount = 0;
+  const mm = t.match(/[\s$](\d[\d.]*(?:,\d+)?)\s*(k|mil|lucas?)?(?=\s)/i);
+  if (mm) {
+    amount = parseFloat(mm[1].replace(/\./g, '').replace(',', '.')) || 0;
+    if (mm[2]) amount *= 1000;
+    t = t.replace(mm[0], ' ');
+  }
+  let cat = null;
+  const tag = t.match(/#(\S+)/);
+  if (tag) {
+    const list = type === 'gasto' ? S.money.dests : S.money.incomes;
+    const hit = list.find(x => norm(x.name).startsWith(norm(tag[1])));
+    if (hit) cat = hit.id;
+    t = t.replace(tag[0], ' ');
+  }
+  const what = t.replace(/\s+/g, ' ').trim();
+  return { amount: Math.round(amount), what, cat: cat || guessCat(what, type) };
+}
+export function addMovement({ type, amount, what, cat = null, date, fixed = false, from }) {
+  const m = { id: uid('m'), type, amount: Math.round(+amount || 0), what: (what || '').trim(), cat, date: date || today(), fixed, created: Date.now() };
+  if (from) m.from = from;
+  S.ledger.push(m); save(); return m;
+}
+export const catName = (m) => {
+  const list = m.type === 'gasto' ? S.money.dests : S.money.incomes;
+  return list.find(x => x.id === m.cat)?.name || 'Sin categoría';
+};
+export const catColor = (m) => (m.type === 'gasto' ? S.money.dests.find(x => x.id === m.cat)?.color : null) || (m.type === 'ingreso' ? '#30d158' : '#8e8e93');
