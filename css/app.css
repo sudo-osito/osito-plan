@@ -1,4 +1,6 @@
 /* ============ Osito Plan · tema oscuro premium ============ */
+/* Tipografía de la marca: «Chocolate Covered Raindrops» de Vanessa Bays (bythebutterfly.com), uso personal */
+@font-face{font-family:"Osito";src:url("../fonts/chocolate-covered-raindrops.ttf") format("truetype");font-display:swap}
 :root{
   color-scheme:dark;
   --bg:#09090b; --panel:#141416; --panel-2:#1b1b1e; --raise:#202024;
@@ -680,3 +682,11 @@ main[data-view="horario"]{padding-bottom:12px}
 .bvr-row .bd{font-size:11.5px;color:var(--ink-3)}
 .fixed-card .fx{display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px}
 @media (max-width:720px){.qe-row{flex-wrap:wrap}.q-amt{width:100%;flex:1 1 140px}.q-what{flex:1 1 100%}.qe-row .btn.primary{flex:1}}
+
+/* marca escrita a mano */
+.brand{font-family:"Osito",-apple-system,system-ui,sans-serif;font-weight:400;font-size:25px;letter-spacing:0;line-height:1}
+.brand span{transform:translateY(2px)}
+.hello h1{font-family:"Osito",-apple-system,system-ui,sans-serif;font-weight:400;font-size:52px;letter-spacing:0;line-height:1}
+.hello .date{margin-top:8px}
+.brand img{width:34px;height:34px;border-radius:9px;object-fit:cover}
+.brand span,.hello h1{-webkit-text-stroke:.035em currentColor;paint-order:stroke fill}

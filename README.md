@@ -12,3 +12,7 @@ Plan personal en el navegador: **tareas** (con fecha y urgencia), **rutina diari
 python3 -m http.server 4800 --bind 127.0.0.1
 # abre http://127.0.0.1:4800/
 ```
+
+## Créditos
+
+- Tipografía de la marca: **Chocolate Covered Raindrops**, de Vanessa Bays — [bythebutterfly.com](http://bythebutterfly.com) (gratis para uso personal).
